@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pornhub 单个与当前页批量下载
 // @namespace    local.pornhub.download-manager
-// @version      1.0.2
+// @version      1.0.3
 // @description  主页跳转、列表单个/当前页批量下载、播放页分辨率与地址；串行任务队列。
 // @author       like-ycy
 // @license      MIT
@@ -15,6 +15,7 @@
 // @run-at       document-idle
 // @noframes
 // @grant        GM_download
+// @grant        GM_info
 // @grant        GM_setClipboard
 // @grant        GM_xmlhttpRequest
 // @connect      pornhub.com
@@ -284,10 +285,10 @@
             error?.message, error?.statusText].filter(value => typeof value === 'string' && value.trim())
             .join('；').replace(/https?:\/\/\S+/g, '[媒体地址]').slice(0, 300);
         const messages = {
-            not_enabled: '请在 Tampermonkey 设置中启用下载功能（下载模式：浏览器 API）',
+            not_enabled: '请在油猴管理面板 → 设置 → 配置模式「高级」中，将下载模式设为「原生（Native）」，保存并刷新页面',
             not_whitelisted: '请在 Tampermonkey 下载扩展名白名单中允许 mp4',
             not_permitted: '请允许 Tampermonkey 的下载权限和媒体域名访问',
-            not_supported: '当前脚本管理器不支持下载，请使用 Tampermonkey 的浏览器 API 下载模式',
+            not_supported: '当前环境不支持油猴下载，请更新 Chrome 和 Tampermonkey 后刷新页面重试',
             not_succeeded: '本地文件保存失败；请检查 Chrome 下载记录、磁盘空间和下载权限',
         };
         const message = messages[code] || `本地文件保存失败（${code}）`;
@@ -296,10 +297,6 @@
 
     function saveFile(job, source, file) {
         return new Promise((resolve, reject) => {
-            if (typeof GM_download !== 'function') {
-                reject(new Error('未找到 GM_download，请在油猴中安装并运行此脚本'));
-                return;
-            }
             let settled = false;
             const finish = error => {
                 if (settled) return;
@@ -312,10 +309,11 @@
                     // 媒体已由页面取得；扩展仅保存本地 File，不重新请求签名 CDN 地址。
                     // OPFS 的 .tmp 文件没有 MIME；显式指定，避免 Chrome 将扩展名改为 .txt。
                     url: file.slice(0, file.size, 'video/mp4'), name: filename(job.title, job.key, source.height),
-                    mode: 'browser', saveAs: false,
+                    // 跟随油猴全局下载设置，允许原生模式避开 UUID 文件名问题。
+                    saveAs: false,
                     onload: () => finish(),
                     onerror: error => finish(new Error(downloadError(error))),
-                    ontimeout: () => finish(new Error('下载超时，请重试')),
+                    ontimeout: () => finish(new Error('保存超时，请先查看浏览器下载列表；若未保存，再重试')),
                     onprogress: event => {
                         if (settled) return;
                         const loaded = Number(event.loaded) || 0;
@@ -423,16 +421,24 @@
     }
 
     async function downloadFile(job, source) {
+        // 所有下载入口共用此检查，避免下载功能关闭时仍读取整段视频。
+        if (typeof GM_download !== 'function') {
+            throw new Error('未找到 GM_download，请在油猴中安装并运行此脚本');
+        }
+        const mode = GM_info.downloadMode;
+        if (mode === 'disabled') throw new Error(downloadError('not_enabled'));
         const directory = await temporaryDirectory();
         await removeAbandonedFiles(directory);
         const name = `transfer-${crypto.randomUUID()}.tmp`;
-        await navigator.locks.request(`${TEMP_DIRECTORY}:${name}`, async () => {
+        return navigator.locks.request(`${TEMP_DIRECTORY}:${name}`, async () => {
             try {
                 const handle = await directory.getFileHandle(name, { create: true });
                 const file = await writeMedia(job, source, handle);
                 job.note = '媒体读取完成，正在保存文件…';
                 renderJobs();
                 await saveFile(job, source, file);
+                // 仅浏览器 API 模式能确认保存完成；原生模式的回调表示已提交。
+                return mode === 'browser' ? 'done' : 'submitted';
             } finally {
                 try { await directory.removeEntry(name); }
                 catch (error) {
@@ -465,9 +471,8 @@
                         job.height = source.height;
                         job.state = 'downloading';
                         renderJobs();
-                        await downloadFile(job, source);
-                        job.state = 'done';
-                        job.note = '';
+                        job.state = await downloadFile(job, source);
+                        job.note = job.state === 'submitted' ? '已交给浏览器保存，请在下载列表确认结果或取消' : '';
                     }
                 } catch (error) {
                     job.state = 'failed';
@@ -704,7 +709,7 @@
 
     function renderJobs() {
         const labels = { queued: '排队中', resolving: '获取最新地址', downloading: '下载中',
-            done: '已完成', failed: '失败', skipped: '已跳过', cancelled: '已停止' };
+            done: '已完成', submitted: '已提交', failed: '失败', skipped: '已跳过', cancelled: '已停止' };
         const counts = {};
         for (const job of jobs) counts[job.state] = (counts[job.state] || 0) + 1;
         taskArea.hidden = !jobs.length;
@@ -720,7 +725,7 @@
             videoLink.rel = 'noopener noreferrer';
             videoLink.title = job.title;
             row.append(videoLink, element('span', `${jobQuality(job)} · ${labels[job.state]}${job.note ? ` · ${job.note}` : ''}`,
-                job.state === 'failed' ? 'error' : job.state === 'done' ? 'success' : ''));
+                job.state === 'failed' ? 'error' : ['done', 'submitted'].includes(job.state) ? 'success' : ''));
             fragment.append(row);
         }
         jobList.replaceChildren(fragment);
@@ -730,7 +735,7 @@
             row.download.disabled = Boolean(active);
             row.download.textContent = active ? '处理中' : '下载';
             row.status.textContent = job ? `${jobQuality(job)} · ${labels[job.state]}${job.note ? ` · ${job.note}` : ''}` : '';
-            row.status.className = `video-status${job?.state === 'failed' ? ' error' : job?.state === 'done' ? ' success' : ''}`;
+            row.status.className = `video-status${job?.state === 'failed' ? ' error' : ['done', 'submitted'].includes(job?.state) ? ' success' : ''}`;
         }
     }
 
