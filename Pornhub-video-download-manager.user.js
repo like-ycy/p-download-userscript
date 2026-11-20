@@ -1,12 +1,19 @@
 // ==UserScript==
 // @name         Pornhub 单个与当前页批量下载
 // @namespace    local.pornhub.download-manager
-// @version      2026.11.20.4
+// @version      1.0.0
 // @description  主页跳转、列表单个/当前页批量下载、播放页分辨率与地址；串行任务队列。
+// @author       like-ycy
+// @license      MIT
+// @homepageURL  https://github.com/like-ycy/p-download-userscript
+// @supportURL   https://github.com/like-ycy/p-download-userscript/issues
+// @icon         https://www.pornhub.com/favicon.ico
 // @match        https://*.pornhub.com/*
 // @match        https://pornhub.com/*
 // @match        https://*.pornhubpremium.com/*
 // @match        https://pornhubpremium.com/*
+// @run-at       document-idle
+// @noframes
 // @grant        GM_download
 // @grant        GM_setClipboard
 // @grant        GM_xmlhttpRequest
@@ -14,9 +21,6 @@
 // @connect      pornhubpremium.com
 // @connect      phncdn.com
 // @connect      phprcdn.com
-// @run-at       document-idle
-// @noframes
-// @license      MIT
 // ==/UserScript==
 
 // 基于原脚本的 mediaDefinitions → get_media 解析思路重新实现。
