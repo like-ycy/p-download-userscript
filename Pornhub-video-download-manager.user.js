@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pornhub 单个与当前页批量下载
 // @namespace    local.pornhub.download-manager
-// @version      1.0.1
+// @version      1.0.2
 // @description  主页跳转、列表单个/当前页批量下载、播放页分辨率与地址；串行任务队列。
 // @author       like-ycy
 // @license      MIT
@@ -13,7 +13,6 @@
 // @match        https://*.pornhubpremium.com/*
 // @match        https://pornhubpremium.com/*
 // @run-at       document-idle
-// @sandbox      DOM
 // @noframes
 // @grant        GM_download
 // @grant        GM_setClipboard
@@ -497,65 +496,65 @@
     }
 
     const css = `
-        :host { display:block; color:#eee; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color-scheme:dark; }
-        * { box-sizing:border-box; } [hidden] { display:none !important; }
-        .panel { clear:both; margin:16px 0; padding:16px; border:1px solid #555; border-radius:10px; background:#181818; }
-        h2 { margin:0 0 10px; color:#ffab40; font-size:18px; } p { margin:8px 0; }
-        .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
-        button,select,a.action { font:inherit; padding:7px 11px; border:1px solid #666; border-radius:6px; background:#303030; color:#fff; }
-        button,a.action { cursor:pointer; } button:hover,a.action:hover { border-color:#ffab40; }
-        button:disabled { cursor:default; opacity:.5; } button.primary,a.action { background:#ff9900; border-color:#ff9900; color:#111; }
-        button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible { outline:3px solid #73cfff; outline-offset:3px; }
-        a { color:#ffb64d; text-decoration:none; } .muted { color:#bbb; font-size:12px; }
-        .panel:not([data-page="home"]),dialog { color-scheme:light; color:#172b3a; background:#fff; border:1px solid #deebf3; border-radius:16px; box-shadow:0 8px 28px #001b3b12; padding:20px; }
-        .panel:not([data-page="home"]) h2,dialog h2 { color:#172b3a; font-size:17px; margin:0; }
-        .panel:not([data-page="home"]) .muted,dialog .muted { color:#688093; }
-        .panel:not([data-page="home"]) button,dialog button { border:0; border-radius:9px; background:#eef3f7; color:#26465d; padding:8px 12px; }
-        .panel:not([data-page="home"]) button.primary,dialog button.primary { background:#008ac5; color:#fff; font-weight:600; }
-        .panel:not([data-page="home"]) button.primary:hover:enabled,dialog button.primary:hover:enabled { background:#0078ab; }
-        .panel:not([data-page="home"]) a,dialog a { color:#008ac5; }
-        .panel:not([data-page="home"]) select,dialog select { background:#fff; color:#26465d; border:1px solid #d6e3ec; border-radius:9px; padding:7px 10px; }
-        .panel:not([data-page="home"]) .controls { margin-top:16px; gap:18px; }
-        label { display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
-        input[type="checkbox"] { width:16px; height:16px; accent-color:#008ac5; margin:0; cursor:pointer; flex:none; }
-        .error { color:#b32e36; } .success { color:#228350; }
-        .task-area { border-top:1px solid #e6eef4; margin-top:18px; padding-top:12px; }
-        summary { cursor:pointer; color:#688093; font-size:12px; padding:4px 0 10px; }
-        .jobs { max-height:260px; overflow:auto; margin-top:8px; }
-        .job { display:grid; grid-template-columns:minmax(100px,1fr) minmax(120px,1fr); gap:16px; border-top:1px solid #e6eef4; padding:10px 0; font-size:12px; overflow-wrap:anywhere; }
-        .job a { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-        dialog { width:min(900px,calc(100vw - 32px)); max-height:85vh; padding:0; overflow:hidden; box-shadow:0 20px 80px #001b3b40; }
-        dialog::backdrop { background:#0f213b66; backdrop-filter:blur(3px); }
-        .dialog-head { padding:20px 24px 14px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-        dialog .close { background:transparent; color:#758796; font-size:25px; line-height:1; padding:0 6px; }
-        .picker-toolbar { padding:12px 24px; background:#f5f9fc; border-block:1px solid #e6eef4; gap:16px; }
-        .picker-toolbar .primary { margin-left:auto; }
-        .table-scroll { max-height:calc(85vh - 210px); min-height:90px; overflow:auto; }
-        table { width:100%; border-collapse:collapse; table-layout:fixed; }
-        th,td { text-align:left; border-bottom:1px solid #e6eef4; padding:13px 8px; font-size:13px; overflow-wrap:anywhere; }
-        th { color:#688093; font-weight:500; background:#fff; position:sticky; top:0; z-index:1; }
-        th:first-child,td:first-child { width:52px; text-align:center; padding-left:20px; }
-        th.duration,td.duration { width:76px; color:#688093; font-variant-numeric:tabular-nums; }
-        th:last-child,td:last-child { width:100px; text-align:right; padding-right:24px; }
-        td button { white-space:nowrap; font-size:12px; padding:7px 11px; }
-        .video-name { display:block; font-weight:600; line-height:1.6; color:#172b3a; }
-        tr[data-selected="true"] { background:#edf8fd; }
-        tr:hover { background:#f5f9fc; }
-        .video-status { display:block; font-size:12px; margin-top:4px; color:#688093; }
-        .video-status.error { color:#b32e36; } .video-status.success { color:#228350; }
-        .dialog-foot { margin:0; padding:11px 24px; border-top:1px solid #e6eef4; }
-        .detail-heading { justify-content:space-between; margin-top:16px; }
-        .sources { margin-top:8px; }
-        .source { display:grid; grid-template-columns:85px minmax(100px,1fr) auto auto; gap:10px; align-items:center; padding:12px 0; border-top:1px solid #e6eef4; }
-        .source strong { color:#26465d; font-size:14px; }
-        .source small { display:block; font-size:11px; font-weight:400; color:#688093; }
-        input.address { min-width:0; width:100%; padding:8px; border:1px solid #e1e9f0; border-radius:7px; background:#f7fafc; color:#688093; font:12px ui-monospace,monospace; }
-        .inline-status { min-height:18px; font-size:12px; margin:5px 0 0; }
+        #${ROOT_ID} { all:initial; display:block; box-sizing:border-box; color:#eee; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color-scheme:dark; }
+        #${ROOT_ID} * { all:revert; box-sizing:border-box; } #${ROOT_ID}[hidden], #${ROOT_ID} [hidden] { display:none !important; }
+        #${ROOT_ID} .panel { clear:both; margin:16px 0; padding:16px; border:1px solid #555; border-radius:10px; background:#181818; }
+        #${ROOT_ID} h2 { margin:0 0 10px; color:#ffab40; font-size:18px; } #${ROOT_ID} p { margin:8px 0; }
+        #${ROOT_ID} .row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+        #${ROOT_ID} button, #${ROOT_ID} select, #${ROOT_ID} a.action { font:inherit; padding:7px 11px; border:1px solid #666; border-radius:6px; background:#303030; color:#fff; }
+        #${ROOT_ID} button, #${ROOT_ID} a.action { cursor:pointer; } #${ROOT_ID} button:hover, #${ROOT_ID} a.action:hover { border-color:#ffab40; }
+        #${ROOT_ID} button:disabled { cursor:default; opacity:.5; } #${ROOT_ID} button.primary, #${ROOT_ID} a.action { background:#ff9900; border-color:#ff9900; color:#111; }
+        #${ROOT_ID} button:focus-visible, #${ROOT_ID} select:focus-visible, #${ROOT_ID} input:focus-visible, #${ROOT_ID} a:focus-visible { outline:3px solid #73cfff; outline-offset:3px; }
+        #${ROOT_ID} a { color:#ffb64d; text-decoration:none; } #${ROOT_ID} .muted { color:#bbb; font-size:12px; }
+        #${ROOT_ID} .panel:not([data-page="home"]), #${ROOT_ID} dialog { color-scheme:light; color:#172b3a; background:#fff; border:1px solid #deebf3; border-radius:16px; box-shadow:0 8px 28px #001b3b12; padding:20px; }
+        #${ROOT_ID} .panel:not([data-page="home"]) h2, #${ROOT_ID} dialog h2 { color:#172b3a; font-size:17px; margin:0; }
+        #${ROOT_ID} .panel:not([data-page="home"]) .muted, #${ROOT_ID} dialog .muted { color:#688093; }
+        #${ROOT_ID} .panel:not([data-page="home"]) button, #${ROOT_ID} dialog button { border:0; border-radius:9px; background:#eef3f7; color:#26465d; padding:8px 12px; }
+        #${ROOT_ID} .panel:not([data-page="home"]) button.primary, #${ROOT_ID} dialog button.primary { background:#008ac5; color:#fff; font-weight:600; }
+        #${ROOT_ID} .panel:not([data-page="home"]) button.primary:hover:enabled, #${ROOT_ID} dialog button.primary:hover:enabled { background:#0078ab; }
+        #${ROOT_ID} .panel:not([data-page="home"]) a, #${ROOT_ID} dialog a { color:#008ac5; }
+        #${ROOT_ID} .panel:not([data-page="home"]) select, #${ROOT_ID} dialog select { background:#fff; color:#26465d; border:1px solid #d6e3ec; border-radius:9px; padding:7px 10px; }
+        #${ROOT_ID} .panel:not([data-page="home"]) .controls { margin-top:16px; gap:18px; }
+        #${ROOT_ID} label { display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
+        #${ROOT_ID} input[type="checkbox"] { width:16px; height:16px; accent-color:#008ac5; margin:0; cursor:pointer; flex:none; }
+        #${ROOT_ID} .error { color:#b32e36; } #${ROOT_ID} .success { color:#228350; }
+        #${ROOT_ID} .task-area { border-top:1px solid #e6eef4; margin-top:18px; padding-top:12px; }
+        #${ROOT_ID} summary { cursor:pointer; color:#688093; font-size:12px; padding:4px 0 10px; }
+        #${ROOT_ID} .jobs { max-height:260px; overflow:auto; margin-top:8px; }
+        #${ROOT_ID} .job { display:grid; grid-template-columns:minmax(100px,1fr) minmax(120px,1fr); gap:16px; border-top:1px solid #e6eef4; padding:10px 0; font-size:12px; overflow-wrap:anywhere; }
+        #${ROOT_ID} .job a { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+        #${ROOT_ID} dialog { width:min(900px,calc(100vw - 32px)); max-height:85vh; padding:0; overflow:hidden; box-shadow:0 20px 80px #001b3b40; }
+        #${ROOT_ID} dialog::backdrop { background:#0f213b66; backdrop-filter:blur(3px); }
+        #${ROOT_ID} .dialog-head { padding:20px 24px 14px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+        #${ROOT_ID} dialog .close { background:transparent; color:#758796; font-size:25px; line-height:1; padding:0 6px; }
+        #${ROOT_ID} .picker-toolbar { padding:12px 24px; background:#f5f9fc; border-block:1px solid #e6eef4; gap:16px; }
+        #${ROOT_ID} .picker-toolbar .primary { margin-left:auto; }
+        #${ROOT_ID} .table-scroll { max-height:calc(85vh - 210px); min-height:90px; overflow:auto; }
+        #${ROOT_ID} table { width:100%; border-collapse:collapse; table-layout:fixed; }
+        #${ROOT_ID} th, #${ROOT_ID} td { text-align:left; border-bottom:1px solid #e6eef4; padding:13px 8px; font-size:13px; overflow-wrap:anywhere; }
+        #${ROOT_ID} th { color:#688093; font-weight:500; background:#fff; position:sticky; top:0; z-index:1; }
+        #${ROOT_ID} th:first-child, #${ROOT_ID} td:first-child { width:52px; text-align:center; padding-left:20px; }
+        #${ROOT_ID} th.duration, #${ROOT_ID} td.duration { width:76px; color:#688093; font-variant-numeric:tabular-nums; }
+        #${ROOT_ID} th:last-child, #${ROOT_ID} td:last-child { width:100px; text-align:right; padding-right:24px; }
+        #${ROOT_ID} td button { white-space:nowrap; font-size:12px; padding:7px 11px; }
+        #${ROOT_ID} .video-name { display:block; font-weight:600; line-height:1.6; color:#172b3a; }
+        #${ROOT_ID} tr[data-selected="true"] { background:#edf8fd; }
+        #${ROOT_ID} tr:hover { background:#f5f9fc; }
+        #${ROOT_ID} .video-status { display:block; font-size:12px; margin-top:4px; color:#688093; }
+        #${ROOT_ID} .video-status.error { color:#b32e36; } #${ROOT_ID} .video-status.success { color:#228350; }
+        #${ROOT_ID} .dialog-foot { margin:0; padding:11px 24px; border-top:1px solid #e6eef4; }
+        #${ROOT_ID} .detail-heading { justify-content:space-between; margin-top:16px; }
+        #${ROOT_ID} .sources { margin-top:8px; }
+        #${ROOT_ID} .source { display:grid; grid-template-columns:85px minmax(100px,1fr) auto auto; gap:10px; align-items:center; padding:12px 0; border-top:1px solid #e6eef4; }
+        #${ROOT_ID} .source strong { color:#26465d; font-size:14px; }
+        #${ROOT_ID} .source small { display:block; font-size:11px; font-weight:400; color:#688093; }
+        #${ROOT_ID} input.address { min-width:0; width:100%; padding:8px; border:1px solid #e1e9f0; border-radius:7px; background:#f7fafc; color:#688093; font:12px ui-monospace,monospace; }
+        #${ROOT_ID} .inline-status { min-height:18px; font-size:12px; margin:5px 0 0; }
         @media(max-width:600px) {
-            .dialog-head,.picker-toolbar { padding:16px; }.picker-toolbar .primary { margin-left:0; }
-            .table-scroll { max-height:calc(85vh - 265px); } th.duration,td.duration { display:none; }
-            th:last-child,td:last-child { width:82px; padding-right:12px; } th:first-child,td:first-child { width:40px; padding-left:10px; }
-            .source { grid-template-columns:70px minmax(0,1fr) auto; }.source input { grid-column:1/-1; grid-row:2; }
+            #${ROOT_ID} .dialog-head, #${ROOT_ID} .picker-toolbar { padding:16px; } #${ROOT_ID} .picker-toolbar .primary { margin-left:0; }
+            #${ROOT_ID} .table-scroll { max-height:calc(85vh - 265px); } #${ROOT_ID} th.duration, #${ROOT_ID} td.duration { display:none; }
+            #${ROOT_ID} th:last-child, #${ROOT_ID} td:last-child { width:82px; padding-right:12px; } #${ROOT_ID} th:first-child, #${ROOT_ID} td:first-child { width:40px; padding-left:10px; }
+            #${ROOT_ID} .source { grid-template-columns:70px minmax(0,1fr) auto; } #${ROOT_ID} .source input { grid-column:1/-1; grid-row:2; }
         }
     `;
 
@@ -603,9 +602,8 @@
     const host = element('div');
     host.id = ROOT_ID;
     host.setAttribute('translate', 'no');
-    // 配合 @sandbox DOM 使用隔离环境的原生接口，避免页面中的 attachShadow 拦截使初始化中断。
-    const shadow = host.attachShadow({ mode: 'open' });
-    shadow.append(element('style', css));
+    // 普通 DOM 配合根节点限定样式，避免访问被页面脚本或扩展拦截的 Shadow DOM 接口。
+    host.append(element('style', css));
     const panel = element('section', '', 'panel');
     const heading = element('h2', '视频下载');
     const intro = element('p', '', 'muted');
@@ -685,7 +683,7 @@
     tableScroll.append(table);
     const pickerFooter = element('p', '所选画质不可用时自动降低；仅下载当前页，关闭此窗口不影响队列。', 'muted dialog-foot');
     dialog.append(dialogHead, pickerToolbar, tableScroll, pickerFooter);
-    shadow.append(panel, dialog);
+    host.append(panel, dialog);
 
     function restartJobs(state) {
         for (const job of jobs) {
@@ -915,7 +913,10 @@
     }
 
     scanPage();
-    new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(records => {
+        // 面板也在普通 DOM 中；忽略自身渲染，避免扫描与渲染互相触发。
+        if (records.some(record => !host.contains(record.target))) scheduleScan();
+    }).observe(document.body, { childList: true, subtree: true });
     window.addEventListener('popstate', scheduleScan);
     window.addEventListener('beforeunload', event => {
         if (!running && !jobs.some(job => job.state === 'queued')) return;

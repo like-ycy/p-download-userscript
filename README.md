@@ -2,7 +2,7 @@
 
 支持 p 站单个视频下载，以及作者页视频批量下载。
 
-安装文件：[`Pornhub-video-download-manager.user.js`](./Pornhub-video-download-manager.user.js)，当前版本 **1.0.1**。原脚本保留不变。
+安装文件：[`Pornhub-video-download-manager.user.js`](./Pornhub-video-download-manager.user.js)，当前版本 **1.0.2**。原脚本保留不变。
 
 本项目以 MIT 许可证发布，全文见 [`LICENSE`](./LICENSE)。
 
@@ -19,7 +19,8 @@
 
 - 网站首页和搜索页不显示下载面板；在作者主页，入口位于最近上传的视频列表上方。
 - Chrome 中还需在 `chrome://extensions` → Tampermonkey → 详情开启“允许用户脚本”；没有该选项的旧版 Chrome 开启扩展管理页的“开发者模式”。修改后刷新网站页面。
-- 如果控制台出现 `content-main.js` 中的 `ReferenceError`，并且调用栈指向本脚本的 `attachShadow`，说明界面初始化被页面环境中的 DOM 接口拦截中断。1.0.1 增加了 `@sandbox DOM`，让油猴优先使用隔离环境，避免受页面接口改写影响。请用新版脚本完整覆盖旧版、保存并刷新；若仍出现同样错误，检查油猴的沙盒设置是否允许 DOM 模式。具体冲突来源需查看报错文件所属的扩展或脚本，不能仅凭文件名判断。
+- 如果旧版控制台出现 `content-main.js` 中的 `ReferenceError`，并且调用栈指向本脚本的 `attachShadow`，说明界面初始化被页面环境中的 DOM 接口拦截中断。1.0.2 已改用普通 DOM 和面板内限定样式，不再访问这个接口。请用新版脚本完整覆盖旧版、保存并刷新。
+- 1.0.1 的 `@sandbox DOM` 只能表达运行环境偏好，油猴仍可能选用其他已启用的环境，因此不能保证避开该冲突。1.0.2 不再依赖这项设置；具体冲突来源需查看报错文件所属的扩展或脚本，不能仅凭文件名判断。
 
 ## 使用
 
