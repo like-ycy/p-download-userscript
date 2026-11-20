@@ -2,7 +2,7 @@
 
 支持 p 站单个视频下载，以及作者页视频批量下载。
 
-安装文件：[`Pornhub-video-download-manager.user.js`](./Pornhub-video-download-manager.user.js)，当前版本 **1.0.0**。原脚本保留不变。
+安装文件：[`Pornhub-video-download-manager.user.js`](./Pornhub-video-download-manager.user.js)，当前版本 **1.0.1**。原脚本保留不变。
 
 本项目以 MIT 许可证发布，全文见 [`LICENSE`](./LICENSE)。
 
@@ -14,6 +14,12 @@
 4. 使用新版 Chrome 和 **Tampermonkey 5.4 或更新版本**（需要本地 Blob/File 下载支持）。允许下载权限及 `mp4` 扩展名；下载模式可用“默认”或“浏览器 API”，不要禁用下载。首次访问媒体域名时，按油猴提示授权。
 
 不依赖外部脚本库，也不需要本地服务、CDP 或 AppleScript；这些工具仅用于开发验证。
+
+### 脚本已启用，但界面没有显示
+
+- 网站首页和搜索页不显示下载面板；在作者主页，入口位于最近上传的视频列表上方。
+- Chrome 中还需在 `chrome://extensions` → Tampermonkey → 详情开启“允许用户脚本”；没有该选项的旧版 Chrome 开启扩展管理页的“开发者模式”。修改后刷新网站页面。
+- 如果控制台出现 `content-main.js` 中的 `ReferenceError`，并且调用栈指向本脚本的 `attachShadow`，说明界面初始化被页面环境中的 DOM 接口拦截中断。1.0.1 增加了 `@sandbox DOM`，让油猴优先使用隔离环境，避免受页面接口改写影响。请用新版脚本完整覆盖旧版、保存并刷新；若仍出现同样错误，检查油猴的沙盒设置是否允许 DOM 模式。具体冲突来源需查看报错文件所属的扩展或脚本，不能仅凭文件名判断。
 
 ## 使用
 

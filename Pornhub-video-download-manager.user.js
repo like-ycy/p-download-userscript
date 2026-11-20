@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pornhub 单个与当前页批量下载
 // @namespace    local.pornhub.download-manager
-// @version      1.0.0
+// @version      1.0.1
 // @description  主页跳转、列表单个/当前页批量下载、播放页分辨率与地址；串行任务队列。
 // @author       like-ycy
 // @license      MIT
@@ -13,6 +13,7 @@
 // @match        https://*.pornhubpremium.com/*
 // @match        https://pornhubpremium.com/*
 // @run-at       document-idle
+// @sandbox      DOM
 // @noframes
 // @grant        GM_download
 // @grant        GM_setClipboard
@@ -602,6 +603,7 @@
     const host = element('div');
     host.id = ROOT_ID;
     host.setAttribute('translate', 'no');
+    // 配合 @sandbox DOM 使用隔离环境的原生接口，避免页面中的 attachShadow 拦截使初始化中断。
     const shadow = host.attachShadow({ mode: 'open' });
     shadow.append(element('style', css));
     const panel = element('section', '', 'panel');
